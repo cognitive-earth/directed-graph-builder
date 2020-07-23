@@ -6,7 +6,7 @@ const path = require('path')
  * set up environment for Dev or Prod logging
  */
 let port;
-if (!process.env["MODE"] || process.env["MODE"] === "DEV") {
+if (process.env["MODE"] === "DEV") {
     process.env["MODE"] = "DEV"
 
     if (process.env["DEBUG_DEV"])
