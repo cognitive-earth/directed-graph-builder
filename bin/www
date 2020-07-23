@@ -18,7 +18,9 @@ if (!process.env["MODE"] || process.env["MODE"] === "DEV") {
     port = normalizePort(process.env.DEV_PORT || '3000');
 
 } else {
-    process.env["GOOGLE_APPLICATION_CREDENTIALS"] = path.join(__dirname, "..", "config/keys/ServiceAccount.json")
+    //if no google default credentials are available from the environment then get from the default location
+    if(!process.env["GOOGLE_APPLICATION_CREDENTIALS"])
+        process.env["GOOGLE_APPLICATION_CREDENTIALS"] = path.join(__dirname, "..", "config/keys/ServiceAccount.json")
     port = normalizePort(process.env.PORT || '3000');
 }
 
