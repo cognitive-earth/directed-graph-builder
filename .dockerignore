@@ -1,0 +1,9 @@
+/node_modules
+/.idea
+/public/cache/*
+/public/broker/*
+/out
+/profiling
+/documentation
+/test
+/.git
