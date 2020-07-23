@@ -1,8 +1,9 @@
 //gcp modules
 const {BigQuery} = require('@google-cloud/bigquery');
-
+const {GoogleAuth} = require('google-auth-library');
 
 let status = {"state": "ready", "taskId": "unset"}
+
 
 module.exports = {links2Tree, status}
 
@@ -26,7 +27,6 @@ CREATE OR REPLACE TABLE `[projectId].model.ParentChild_versions`
 
 */
 
-
 async function links2Tree(taskId, projectId, location) {
     status.state = "running"
     status.taskId = taskId
@@ -34,20 +34,27 @@ async function links2Tree(taskId, projectId, location) {
     console.log("initiated build of connectivity tree")
 
     let options = {}
+    if (!projectId) {
+        const auth = new GoogleAuth();
+        projectId = await auth.getProjectId();
+        options.projectId = projectId
+    }
+
+    options.location = location || 'australia-southeast1';
+
     let bigQuery = new BigQuery({projectId: projectId});
     let createDate = new Date()
     let createDateString = createDate.toUTCString()
 
     options.query = `SELECT * FROM \`${projectId}.model.edges\``
-    options.location = location || 'australia-southeast1';
-    
+
     let edges;
 
     try {
         [edges] = await bigQuery.query(options);
     } catch (error) {
         console.log(error)
-        status.result = {"error": {"message": "failed executing build"}, "taskId": "links2Tree"}
+        status.result = {"error": {"message": "failed executing build"}, taskId}
         console.log(status.result)
 
         //reset status
@@ -84,7 +91,7 @@ async function links2Tree(taskId, projectId, location) {
         let link = edges[i]
 
         edgeMap.set(link.id, link)
-        if(link.seed) {
+        if (link.seed) {
             seedEdgeSet.add(link.id)
         }
 
