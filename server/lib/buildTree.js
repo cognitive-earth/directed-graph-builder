@@ -10,18 +10,18 @@ module.exports = {links2Tree, status}
 
 /*
 
-CREATE OR REPLACE TABLE `[projectId].model.ParentChild_versions`
+CREATE OR REPLACE TABLE `[projectId].build.ParentChild_versions`
 (
   createDate   STRING    OPTIONS(description="initiation time (version) of trace"),
-  startVertex  STRING  OPTIONS(description="Id of first node of trace"),
+  startVertex  INT64  OPTIONS(description="Id of first node of trace"),
   startType    STRING  OPTIONS(description="trace type feeder node or random seed"),
   trace        INT64   OPTIONS(description="processing order of the feederTrace"),
   depth        INT64   OPTIONS(description="depth of parent vertex"),
   child        INT64   OPTIONS(description="processing order of this child vertex"),
   sequence     INT64   OPTIONS(description="processing order of the vertices"),
-  parentVertex STRING  OPTIONS(description="upstream vertex"),
-  childVertex  STRING  OPTIONS(description="downstream vertex"),
-  edgeId       STRING  OPTIONS(description="id of link between upstream and downstream vertex"),
+  parentVertex INT64  OPTIONS(description="upstream vertex"),
+  childVertex  INT64  OPTIONS(description="downstream vertex"),
+  edgeId       INT64  OPTIONS(description="id of link between upstream and downstream vertex"),
   metric       FLOAT64 OPTIONS(description="cumulative value of id created")
 )
 
@@ -36,17 +36,18 @@ async function links2Tree(taskId, projectId, location) {
     let options = {}
     if (!projectId) {
         const auth = new GoogleAuth();
+		console.log("GoogleAuth");
         projectId = await auth.getProjectId();
         options.projectId = projectId
     }
-
+	console.log(projectId);
     options.location = location || 'australia-southeast1';
 
     let bigQuery = new BigQuery({projectId: projectId});
     let createDate = new Date()
     let createDateString = createDate.toUTCString()
 
-    options.query = `SELECT * FROM \`${projectId}.model.edges\``
+    options.query = `SELECT * FROM \`${projectId}.build.edges\``
 
     let edges;
 
@@ -63,7 +64,7 @@ async function links2Tree(taskId, projectId, location) {
         return status.result
     }
 
-    options.query = `SELECT * FROM \`${projectId}.model.startVertices\``
+    options.query = `SELECT * FROM \`${projectId}.build.startVertices\``
 
     let feederNodes;
 
@@ -175,6 +176,8 @@ async function links2Tree(taskId, projectId, location) {
     while (startVertexId) {
 
         let rows = []
+		let properties = []
+		vertexMap.clear();
 
         console.log("startVertexId", startVertexId)
 
@@ -184,12 +187,24 @@ async function links2Tree(taskId, projectId, location) {
         let j = 0
 
         do {
-            let cumulativeMetric = 0;
+            let cumulativeMetric1 = 0;
+			let cumulativeMetric2 = 0;
+			let cumulativeMetric3 = 0;
+			let cumulativeMetric4 = 0;
+			let cumulativeMetric5 = 0;
+			let cumulativeMetric6 = 0;
+			let nodeList = ' ';
             let currentVertexId = activeFrontIndex.shift()
             let newEdgeKeys = getEdgeKeys(currentVertexId)
 
             if (vertexMap.has(currentVertexId)) {
-                cumulativeMetric = vertexMap.get(currentVertexId).m || 0
+                cumulativeMetric1 = vertexMap.get(currentVertexId).m1 || 0
+				cumulativeMetric2 = vertexMap.get(currentVertexId).m2 || 0
+				cumulativeMetric3 = vertexMap.get(currentVertexId).m3 || 0
+				cumulativeMetric4 = vertexMap.get(currentVertexId).m4 || 0
+				cumulativeMetric5 = vertexMap.get(currentVertexId).m5 || 0
+				cumulativeMetric6 = vertexMap.get(currentVertexId).m6 || 0
+				nodeList = vertexMap.get(currentVertexId).nl || ' '
             }
 
             for (let k = 0; k < newEdgeKeys.length; k++) {
@@ -197,8 +212,19 @@ async function links2Tree(taskId, projectId, location) {
                 let newEdgeId = newEdgeKeys[k].e
                 let newVertexId = newEdgeKeys[k].v
 
-                let edgeMetric = cumulativeMetric + edgeMap.get(newEdgeId).metric
-                vertexMap.set(newVertexId, {"m": edgeMetric})
+                let edgeMetric1 = cumulativeMetric1 + edgeMap.get(newEdgeId).metric1
+                let edgeMetric2 = cumulativeMetric2 + edgeMap.get(newEdgeId).metric2
+                let edgeMetric3 = cumulativeMetric3 + edgeMap.get(newEdgeId).metric3
+                let edgeMetric4 = cumulativeMetric4 + edgeMap.get(newEdgeId).metric4
+                let edgeMetric5 = cumulativeMetric5 + edgeMap.get(newEdgeId).metric5
+                let edgeMetric6 = cumulativeMetric6 + edgeMap.get(newEdgeId).metric6
+				if (j == 0) {
+					var edgeNodeList = nodeList + currentVertexId;
+				} else {
+					var edgeNodeList = nodeList + ',' + currentVertexId;
+				}
+
+                vertexMap.set(newVertexId, {"m1": edgeMetric1, "m2": edgeMetric2, "m3": edgeMetric3, "m4": edgeMetric4, "m5": edgeMetric5, "m6": edgeMetric6, "nl": edgeNodeList})	
 
                 rows.push({
                     "createDate": createDateString,
@@ -211,9 +237,79 @@ async function links2Tree(taskId, projectId, location) {
                     "parentVertex": currentVertexId,
                     "childVertex": newVertexId,
                     "edgeId": newEdgeId,
-                    "metric": edgeMetric
+                    "metric": edgeMetric1
                 })
+				
+				if (edgeMetric1 > 0) {
+					properties.push({
+						"createDate": createDateString,
+						"startVertex": startVertexId,
+						"edgeId": newEdgeId,
+						"property": "Network Distance",
+						"propertyValue": edgeMetric1
+					})
+				}
+				
+				if (edgeMetric2 > 0) {				
+					properties.push({
+						"createDate": createDateString,
+						"startVertex": startVertexId,
+						"edgeId": newEdgeId,
+						"property": "Pole Count",
+						"propertyValue": edgeMetric2
+					})
+				}
+				
+				if (edgeMetric3 > 0) {
+					properties.push({
+						"createDate": createDateString,
+						"startVertex": startVertexId,
+						"edgeId": newEdgeId,
+						"property": "Cubicle Count",
+						"propertyValue": edgeMetric3
+					})
+				}
 
+				if (edgeMetric4 > 0) {
+					properties.push({
+						"createDate": createDateString,
+						"startVertex": startVertexId,
+						"edgeId": newEdgeId,
+						"property": "Regulator Site Count",
+						"propertyValue": edgeMetric4
+					})
+				}
+
+				if (edgeMetric5 > 0) {
+					properties.push({
+						"createDate": createDateString,
+						"startVertex": startVertexId,
+						"edgeId": newEdgeId,
+						"property": "Metering Unit Count",
+						"propertyValue": edgeMetric5
+					})
+				}
+
+				if (edgeMetric6 > 0) {
+					properties.push({
+						"createDate": createDateString,
+						"startVertex": startVertexId,
+						"edgeId": newEdgeId,
+						"property": "Switch Count",
+						"propertyValue": edgeMetric6
+					})
+				}
+				
+				if (edgeNodeList != ' ') {
+					properties.push({
+						"createDate": createDateString,
+						"startVertex": startVertexId,
+						"edgeId": newEdgeId,
+						"property": "Parent Nodes",
+						"propertyValue": edgeNodeList
+					})
+				}				
+				
                 //the edge between currentVertex and newVertex has been processed
                 edgeMap.delete(newEdgeId)
             }
@@ -221,11 +317,13 @@ async function links2Tree(taskId, projectId, location) {
             //all edges emanating from currentVertex have now been processed
             activeFrontSet.delete(currentVertexId)
 
-            if (rows.length > 9000) {
+            if (rows.length > 500) {
                 //log the last row
                 console.log(JSON.stringify(rows[rows.length - 1]))
-                await insertRowsAsStream(rows, projectId).catch(err => console.log(err));
+                await insertRowsAsStream(rows, projectId, "ParentChild_versions").catch(err => console.log(err));
+				await insertRowsAsStream(properties, projectId, "edgeProperties_versions").catch(err => console.log(err));
                 rows = []
+                properties = []
             }
 
             j++
@@ -234,8 +332,10 @@ async function links2Tree(taskId, projectId, location) {
         if (rows.length > 0) {
             //log the last row
             console.log(JSON.stringify(rows[rows.length - 1]))
-            await insertRowsAsStream(rows, projectId).catch(err => console.log(err));
+            await insertRowsAsStream(rows, projectId, "ParentChild_versions").catch(err => console.log(err));
+			await insertRowsAsStream(properties, projectId, "edgeProperties_versions").catch(err => console.log(err));			
             rows = []
+			properties = []
         }
 
         n++
@@ -253,13 +353,13 @@ async function links2Tree(taskId, projectId, location) {
     status.taskId = "unset"
 }
 
-async function insertRowsAsStream(rows, projectId) {
+async function insertRowsAsStream(rows, projectId, tablename) {
     let bigQuery = new BigQuery({projectId: projectId});
 
     try {
         await bigQuery
-            .dataset("model")
-            .table("ParentChild_versions")
+            .dataset("build")
+            .table(tablename)
             .insert(rows);
     } catch (error) {
         console.log(error)
