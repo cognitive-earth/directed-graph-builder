@@ -16,6 +16,6 @@
     "google-auth-library": "^5.9.1",
     "morgan": "~1.9.1",
     "node-fetch": "^2.6.0",
-    "nanoid": "^2.1.10"
+    "nanoid": "^3.1.31"
   }
 }
